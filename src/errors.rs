@@ -38,6 +38,9 @@ pub enum Error {
 
     #[error(transparent)]
     ReqwestError(#[from] reqwest::Error),
+
+    #[error("Cannot get token from Auth0")]
+    InvalidToken,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

@@ -1,6 +1,8 @@
 pub mod actors;
+pub mod consts;
 pub mod db;
 pub mod errors;
+pub mod models;
 pub mod registration;
 pub mod utils;
 
