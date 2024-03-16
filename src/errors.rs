@@ -41,6 +41,9 @@ pub enum Error {
 
     #[error("Cannot get token from Auth0")]
     InvalidToken,
+
+    #[error(transparent)]
+    SerdeJsonError(#[from] serde_json::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

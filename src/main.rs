@@ -3,12 +3,12 @@ pub mod consts;
 pub mod db;
 pub mod errors;
 pub mod models;
-pub mod registration;
+pub mod user_flow;
 pub mod utils;
 
 use crate::db::postgres_db::DbService;
 use crate::errors::Result;
-use crate::registration::{check_token, login, register};
+use crate::user_flow::requests::{check_token, login, register};
 use crate::utils::init_logging;
 use actix::Actor;
 use actix_web::web::Data;

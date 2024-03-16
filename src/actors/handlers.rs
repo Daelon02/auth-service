@@ -1,5 +1,6 @@
 use crate::actors::messages::{
-    CreateUser, DeleteUser, UpdateActivateEmail, UpdateEmail, UpdatePassword, UpdateUsername,
+    CheckIfRegisteredUser, CheckUser, CreateUser, DeleteUser, UpdateActivateEmail, UpdateEmail,
+    UpdatePassword, UpdateUsername,
 };
 use crate::db::postgres_db::DbService;
 use crate::db::tables::Users;
@@ -139,6 +140,51 @@ impl Handler<UpdateUsername> for DbService {
             Ok(())
         };
         log::info!("Updating user username {}", msg.user_id);
+
+        let db = self.clone();
+        AtomicResponse::new(Box::pin(query.into_actor(&db)))
+    }
+}
+
+impl Handler<CheckUser> for DbService {
+    type Result = AtomicResponse<Self, crate::errors::Result<bool>>;
+
+    fn handle(&mut self, msg: CheckUser, _: &mut Self::Context) -> Self::Result {
+        let db = self.clone();
+        let conn = async move { db.pool.get().await };
+        let query = async move {
+            let user = crate::db::schema::users::table
+                .filter(crate::db::schema::users::id.eq(msg.id))
+                .first::<Users>(&mut conn.await?)
+                .await?;
+            Ok(user.id == msg.id)
+        };
+        log::info!("Checking user {}", msg.id);
+
+        let db = self.clone();
+        AtomicResponse::new(Box::pin(query.into_actor(&db)))
+    }
+}
+
+impl Handler<CheckIfRegisteredUser> for DbService {
+    type Result = AtomicResponse<Self, crate::errors::Result<bool>>;
+
+    fn handle(&mut self, msg: CheckIfRegisteredUser, _: &mut Self::Context) -> Self::Result {
+        let db = self.clone();
+        let conn = async move { db.pool.get().await };
+        let query = async move {
+            let user = crate::db::schema::users::table
+                .filter(crate::db::schema::users::username.eq(msg.username))
+                .filter(crate::db::schema::users::email.eq(msg.email))
+                .first::<Users>(&mut conn.await?)
+                .await;
+
+            match user {
+                Ok(_) => Ok(true),
+                Err(_) => Ok(false),
+            }
+        };
+        log::info!("Checking if user is registered");
 
         let db = self.clone();
         AtomicResponse::new(Box::pin(query.into_actor(&db)))
