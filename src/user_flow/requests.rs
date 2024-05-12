@@ -9,6 +9,14 @@ use actix_web::{HttpRequest, HttpResponse};
 use alcoholic_jwt::{token_kid, validate, Validation};
 use uuid::Uuid;
 
+#[utoipa::path(
+    post,
+    path = "/register",
+    responses(
+        (status = 200, description = "User successfully registered", body = UserData),
+        (status = BAD_REQUEST, description = "User already registered")
+    )
+)]
 pub async fn register(
     user: Json<UserData>,
     db: Data<Addr<DbService>>,
@@ -38,6 +46,14 @@ pub async fn register(
     Ok(HttpResponse::Ok().body(serde_json::to_string(&user)?))
 }
 
+#[utoipa::path(
+    post,
+    path = "/login",
+    responses(
+        (status = 200, description = "User successfully login", body = RegisteredUserData),
+        (status = BAD_REQUEST, description = "User not found")
+    )
+)]
 pub async fn login(
     db: Data<Addr<DbService>>,
     user: Json<RegisteredUserData>,
@@ -54,6 +70,14 @@ pub async fn login(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/check_token",
+    responses(
+        (status = 200, description = "This is a right token"),
+        (status = BAD_REQUEST, description = "Not correct token")
+    )
+)]
 pub async fn check_token(req: HttpRequest) -> crate::errors::Result<HttpResponse> {
     log::info!("Getting request for checking token!");
     let token = req
