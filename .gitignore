@@ -14,6 +14,7 @@ Cargo.lock
 *.pdb
 .idea
 .env
+*.pem
 
 
 # Added by cargo

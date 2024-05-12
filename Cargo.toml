@@ -19,13 +19,16 @@ diesel = { version = "=2.1.4", features = [
 diesel-derive-enum = { version = "2.0.0-rc.0", features = ["postgres"] }
 diesel-async = { version = "0.4.1", features = ["postgres", "deadpool"] }
 tokio = "1.36.0"
-thiserror = "1.0.57"
-uuid = { version = "1.7.0", features = ["v4", "serde"] }
+thiserror = "1.0.58"
+uuid = { version = "1.8.0", features = ["v4", "serde"] }
 chrono = "0.4.35"
-reqwest = { version = "0.11.25", features = ["json"] }
+reqwest = { version = "0.12.1", features = ["json"] }
 log = "0.4.21"
-anyhow = "1.0.80"
+anyhow = "1.0.81"
 fern = "0.6.2"
 colored = "2.1.0"
 dotenv = "0.15.0"
-jsonwebtoken = "9.2.0"
+jsonwebtoken = "9.3.0"
+http = "1.1.0"
+openssl = "0.10.64"
+alcoholic_jwt = "4091.0.0"

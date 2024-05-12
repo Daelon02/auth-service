@@ -44,6 +44,21 @@ pub enum Error {
 
     #[error(transparent)]
     SerdeJsonError(#[from] serde_json::Error),
+
+    #[error(transparent)]
+    ToStrError(#[from] actix_web::http::header::ToStrError),
+
+    #[error(transparent)]
+    DotenvError(#[from] dotenv::Error),
+
+    #[error(transparent)]
+    JsonWebTokenError(#[from] jsonwebtoken::errors::Error),
+
+    #[error(transparent)]
+    ErrorStackError(#[from] openssl::error::ErrorStack),
+
+    #[error(transparent)]
+    AlcoholicJwtValidationError(#[from] alcoholic_jwt::ValidationError),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

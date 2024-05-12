@@ -2,7 +2,7 @@ use crate::consts::{ACCESS_TOKEN, APPLICATION_JSON, AUDIENCE, CONTENT_TYPE, GRAN
 use crate::errors::Error;
 use crate::models::{ConnectToAuth0, LoginFlow, RegisteredUserData, RegistrationFlow, UserData};
 use crate::user_flow::consts::{LOGIN_URL, REGISTRATION_URL};
-use actix_web::http::Method;
+use http::Method;
 use reqwest::Client;
 use serde_json::Value;
 use uuid::Uuid;

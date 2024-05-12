@@ -2,9 +2,11 @@ use crate::actors::messages::{CheckIfRegisteredUser, CheckUser, CreateUser};
 use crate::db::postgres_db::DbService;
 use crate::models::{RegisteredUserData, UserData};
 use crate::user_flow::auth0::{get_jwt_user_token, register_user};
+use crate::user_flow::utils::fetch_jwks;
 use actix::Addr;
 use actix_web::web::{Data, Json};
-use actix_web::HttpResponse;
+use actix_web::{HttpRequest, HttpResponse};
+use alcoholic_jwt::{token_kid, validate, Validation};
 use uuid::Uuid;
 
 pub async fn register(
@@ -52,7 +54,24 @@ pub async fn login(
     }
 }
 
-pub async fn check_token(_db: Data<DbService>) -> crate::errors::Result<HttpResponse> {
+pub async fn check_token(req: HttpRequest) -> crate::errors::Result<HttpResponse> {
     log::info!("Getting request for checking token!");
+    let token = req
+        .headers()
+        .get("Authorization")
+        .expect("Cannot find Auth header")
+        .to_str()?;
+    let authority = std::env::var("CLIENT").expect("AUTHORITY must be set");
+    let uri = &format!("{}{}", authority.as_str(), ".well-known/jwks.json");
+    log::info!("Fetching JWKS from: {}", uri);
+    let jwks = fetch_jwks(uri).await?;
+    let validations = vec![Validation::Issuer(authority), Validation::SubjectPresent];
+    let kid = match token_kid(token) {
+        Ok(res) => res.expect("failed to decode kid"),
+        Err(e) => return Err(crate::errors::Error::AlcoholicJwtValidationError(e)),
+    };
+    let jwk = jwks.find(&kid).expect("Specified key not found in set");
+    let res = validate(token, jwk, validations)?;
+    log::info!("Token: {:?}", res.claims);
     Ok(HttpResponse::Ok().finish())
 }
