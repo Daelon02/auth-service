@@ -1,7 +1,7 @@
 use crate::db::postgres_db::DbService;
 use crate::middleware::auth::AuthMiddleware;
 use crate::services::auth0::Auth0Service;
-use crate::user_flow::requests::{change_password, login, register};
+use crate::user_flow::requests::{change_password, login, profile, register};
 use crate::ApiDoc;
 use actix::Addr;
 use actix_web::web;
@@ -72,18 +72,20 @@ fn parse_thread_id(id: &ThreadId) -> String {
     parsed.unwrap_or(id_str)
 }
 
-pub fn configure_routes(cfg: &mut web::ServiceConfig) {
+pub fn configure_routes(cfg: &mut ServiceConfig) {
     let openapi = ApiDoc::openapi();
 
     cfg.service(
+        web::scope("/user")
+            .wrap(AuthMiddleware)
+            .service(web::resource("/change_password").route(web::post().to(change_password)))
+            .service(web::resource("/profile/{user_id}").route(web::get().to(profile))),
+    )
+    .service(
         web::scope("")
             .service(web::resource("/login").route(web::post().to(login)))
             .service(web::resource("/register").route(web::post().to(register)))
-            .service(SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi)),
-    )
-    .service(
-        web::scope("/user")
-            .wrap(AuthMiddleware)
+            .service(SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi))
             .service(web::resource("/change_password").route(web::post().to(change_password))),
     );
 }

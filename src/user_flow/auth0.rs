@@ -16,7 +16,7 @@ pub async fn register_user(
 ) -> crate::errors::Result<()> {
     let client = Client::new();
 
-    let url = format!("{}{}", auth0_service.client_url, REGISTRATION_URL);
+    let url = format!("{}/{}", auth0_service.client_url, REGISTRATION_URL);
 
     let body = auth0_service.generate_body_for_registration(
         user_id,

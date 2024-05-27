@@ -59,6 +59,9 @@ pub enum Error {
 
     #[error(transparent)]
     AlcoholicJwtValidationError(#[from] alcoholic_jwt::ValidationError),
+
+    #[error("Error: {0}")]
+    StringError(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

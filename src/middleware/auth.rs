@@ -11,11 +11,17 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use tokio::sync::RwLock;
 
+pub const AUDIENCE: &str = "https://someexample.com";
+
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
 struct Claims {
+    aud: String,
+    azp: String,
+    exp: i64,
+    iat: i64,
+    iss: String,
     sub: String,
-    exp: usize,
 }
 
 pub struct AuthMiddleware;
@@ -73,17 +79,22 @@ where
             if let Some(auth_header) = auth_header {
                 if let Ok(auth_token) = auth_header.to_str() {
                     if let Some(auth_str) = auth_token.strip_prefix("Bearer ") {
-                        let token = &auth_str[7..];
+                        let token = auth_str;
 
                         let decoding_key = decoding_key.read().await;
 
-                        return match decode::<Claims>(
-                            token,
-                            &decoding_key,
-                            &Validation::new(Algorithm::HS256),
-                        ) {
+                        let audience = [AUDIENCE];
+
+                        let validation = &mut Validation::new(Algorithm::RS256);
+
+                        validation.set_audience(&audience);
+
+                        return match decode::<Claims>(token, &decoding_key, validation) {
                             Ok(_) => service.call(req).await,
-                            Err(_) => Ok(req.into_response(HttpResponse::Unauthorized().finish())),
+                            Err(e) => {
+                                log::error!("Unauthorized access: {}", e);
+                                Ok(req.into_response(HttpResponse::Unauthorized().finish()))
+                            }
                         };
                     }
                 }
@@ -100,7 +111,8 @@ impl AuthMiddleware {
         let mut key_data = Vec::new();
         file.read_to_end(&mut key_data)?;
 
-        let decoding_key = DecodingKey::from_secret(&key_data);
+        let decoding_key =
+            DecodingKey::from_rsa_pem(key_data.as_slice()).expect("Failed to load key");
 
         Ok(decoding_key)
     }
