@@ -1,8 +1,18 @@
+use crate::db::postgres_db::DbService;
+use crate::middleware::auth::AuthMiddleware;
+use crate::services::auth0::Auth0Service;
+use crate::user_flow::requests::{change_password, login, register};
+use crate::ApiDoc;
+use actix::Addr;
+use actix_web::web;
+use actix_web::web::{Data, ServiceConfig};
 use colored::Colorize;
 use log::{Level, LevelFilter};
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::thread::ThreadId;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 pub fn init_logging() -> crate::errors::Result<()> {
     // Logging lib errors and all app logs
@@ -60,4 +70,29 @@ fn parse_thread_id(id: &ThreadId) -> String {
     })();
 
     parsed.unwrap_or(id_str)
+}
+
+pub fn configure_routes(cfg: &mut web::ServiceConfig) {
+    let openapi = ApiDoc::openapi();
+
+    cfg.service(
+        web::scope("")
+            .service(web::resource("/login").route(web::post().to(login)))
+            .service(web::resource("/register").route(web::post().to(register)))
+            .service(SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi)),
+    )
+    .service(
+        web::scope("/user")
+            .wrap(AuthMiddleware)
+            .service(web::resource("/change_password").route(web::post().to(change_password))),
+    );
+}
+pub fn configure_data(
+    db: Addr<DbService>,
+    auth0_service: Auth0Service,
+) -> Box<dyn FnOnce(&mut ServiceConfig)> {
+    Box::new(move |cfg: &mut ServiceConfig| {
+        cfg.app_data(Data::new(db))
+            .app_data(Data::new(auth0_service));
+    })
 }

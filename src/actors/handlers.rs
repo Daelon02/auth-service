@@ -1,6 +1,6 @@
 use crate::actors::messages::{
     CheckIfRegisteredUser, CheckUser, CreateUser, DeleteUser, UpdateActivateEmail, UpdateEmail,
-    UpdatePassword, UpdateUsername,
+    UpdateUsername,
 };
 use crate::db::postgres_db::DbService;
 use crate::db::tables::Users;
@@ -19,7 +19,6 @@ impl Handler<CreateUser> for DbService {
                 id: msg.id,
                 username: msg.username,
                 email: msg.email,
-                password: msg.password,
                 is_email_activate: false,
                 created_at: chrono::Utc::now(),
                 updated_at: None,
@@ -77,27 +76,6 @@ impl Handler<DeleteUser> for DbService {
             Ok(())
         };
         log::info!("Deleting user {}", msg.user_id);
-
-        let db = self.clone();
-        AtomicResponse::new(Box::pin(query.into_actor(&db)))
-    }
-}
-
-impl Handler<UpdatePassword> for DbService {
-    type Result = AtomicResponse<Self, crate::errors::Result<()>>;
-
-    fn handle(&mut self, msg: UpdatePassword, _: &mut Self::Context) -> Self::Result {
-        let db = self.clone();
-        let conn = async move { db.pool.get().await };
-        let query = async move {
-            let _ = diesel::update(crate::db::schema::users::table)
-                .filter(crate::db::schema::users::id.eq(msg.user_id))
-                .set(crate::db::schema::users::password.eq(msg.password))
-                .execute(&mut conn.await?)
-                .await?;
-            Ok(())
-        };
-        log::info!("Updating user password {}", msg.user_id);
 
         let db = self.clone();
         AtomicResponse::new(Box::pin(query.into_actor(&db)))

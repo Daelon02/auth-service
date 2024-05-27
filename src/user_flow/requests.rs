@@ -1,12 +1,12 @@
 use crate::actors::messages::{CheckIfRegisteredUser, CheckUser, CreateUser};
 use crate::db::postgres_db::DbService;
-use crate::models::{RegisteredUserData, UserData};
+use crate::models::{RegisteredUserData, UpdatePasswordData, UserData};
+use crate::services::auth0::Auth0Service;
+use crate::user_flow::account_flow_methods::send_request_to_change_pass;
 use crate::user_flow::auth0::{get_jwt_user_token, register_user};
-use crate::user_flow::utils::fetch_jwks;
 use actix::Addr;
 use actix_web::web::{Data, Json};
-use actix_web::{HttpRequest, HttpResponse};
-use alcoholic_jwt::{token_kid, validate, Validation};
+use actix_web::HttpResponse;
 use uuid::Uuid;
 
 #[utoipa::path(
@@ -19,10 +19,11 @@ use uuid::Uuid;
 )]
 pub async fn register(
     user: Json<UserData>,
+    auth0_service: Data<Auth0Service>,
     db: Data<Addr<DbService>>,
 ) -> crate::errors::Result<HttpResponse> {
     let user_id = Uuid::new_v4();
-    register_user(user.clone(), user_id).await?;
+    register_user(user.clone(), user_id, auth0_service).await?;
 
     let if_user = CheckIfRegisteredUser {
         username: user.username.clone(),
@@ -55,14 +56,15 @@ pub async fn register(
     )
 )]
 pub async fn login(
-    db: Data<Addr<DbService>>,
     user: Json<RegisteredUserData>,
+    auth0_service: Data<Auth0Service>,
+    db: Data<Addr<DbService>>,
 ) -> crate::errors::Result<HttpResponse> {
     let if_user = CheckUser { id: user.id };
 
     if db.send(if_user).await?? {
         log::info!("Getting request for login!");
-        let token = get_jwt_user_token(user.0.clone()).await?;
+        let token = get_jwt_user_token(user.0.clone(), auth0_service).await?;
         let json = serde_json::json!({ "user": user, "token": token });
         Ok(HttpResponse::Ok().body(json.to_string()))
     } else {
@@ -72,30 +74,26 @@ pub async fn login(
 
 #[utoipa::path(
     post,
-    path = "/check_token",
+    path = "/change_password",
     responses(
-        (status = 200, description = "This is a right token"),
-        (status = BAD_REQUEST, description = "Not correct token")
+        (status = 200, description = "Successfully send email to change password"),
+        (status = BAD_REQUEST, description = "User not found")
     )
 )]
-pub async fn check_token(req: HttpRequest) -> crate::errors::Result<HttpResponse> {
-    log::info!("Getting request for checking token!");
-    let token = req
-        .headers()
-        .get("Authorization")
-        .expect("Cannot find Auth header")
-        .to_str()?;
-    let authority = std::env::var("CLIENT").expect("AUTHORITY must be set");
-    let uri = &format!("{}{}", authority.as_str(), ".well-known/jwks.json");
-    log::info!("Fetching JWKS from: {}", uri);
-    let jwks = fetch_jwks(uri).await?;
-    let validations = vec![Validation::Issuer(authority), Validation::SubjectPresent];
-    let kid = match token_kid(token) {
-        Ok(res) => res.expect("failed to decode kid"),
-        Err(e) => return Err(crate::errors::Error::AlcoholicJwtValidationError(e)),
-    };
-    let jwk = jwks.find(&kid).expect("Specified key not found in set");
-    let res = validate(token, jwk, validations)?;
-    log::info!("Token: {:?}", res.claims);
-    Ok(HttpResponse::Ok().finish())
+pub async fn change_password(
+    db: Data<Addr<DbService>>,
+    user: Json<UpdatePasswordData>,
+    auth0_service: Data<Auth0Service>,
+) -> crate::errors::Result<HttpResponse> {
+    let if_user = CheckUser { id: user.user_id };
+
+    if db.send(if_user).await?? {
+        log::info!("Getting request for change password!");
+
+        send_request_to_change_pass(user.user_id, user.email.clone(), auth0_service).await?;
+
+        Ok(HttpResponse::Ok().body("Sent email to change password!"))
+    } else {
+        Ok(HttpResponse::BadRequest().finish())
+    }
 }

@@ -34,3 +34,4 @@ openssl = "0.10.64"
 alcoholic_jwt = "4091.0.0"
 utoipa = { version = "4.2.3", features = ["actix_extras", "chrono", "yaml", "uuid"] }
 utoipa-swagger-ui = { version = "7.0.1", features = ["actix-web"] }
+futures-util = "0.3.30"

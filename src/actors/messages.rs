@@ -25,13 +25,6 @@ pub(crate) struct DeleteUser {
 
 #[derive(Message)]
 #[rtype(result = "crate::errors::Result<()>")]
-pub(crate) struct UpdatePassword {
-    pub user_id: Uuid,
-    pub password: String,
-}
-
-#[derive(Message)]
-#[rtype(result = "crate::errors::Result<()>")]
 pub(crate) struct UpdateEmail {
     pub user_id: Uuid,
     pub email: String,
