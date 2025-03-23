@@ -1,0 +1,9 @@
+application:
+  bind: localhost:8080
+database:
+  database_url: postgres://login:password@localhost:5432/some_db
+auth0:
+  client_id: some_id
+  client_secret: some_secret
+  client: https://someexample.com
+  connection: Username-Password-Authentication

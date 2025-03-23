@@ -62,6 +62,18 @@ pub enum Error {
 
     #[error("Error: {0}")]
     StringError(String),
+
+    #[error(transparent)]
+    ClapError(#[from] clap::Error),
+
+    #[error(transparent)]
+    ConfigError(#[from] config::ConfigError),
+
+    #[error(transparent)]
+    Auth0RequestBuildError(#[from] crate::services::auth0::errors::BuildError),
+
+    #[error(transparent)]
+    UuidError(#[from] uuid::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -78,6 +90,10 @@ impl ErrorMessageResponse {
             message: err.to_string(),
         })
     }
+
+    pub fn response_with_message(status: StatusCode, message: String) -> HttpResponse {
+        HttpResponse::build(status).json(Self { message })
+    }
 }
 
 impl actix_web::ResponseError for Error {
@@ -90,14 +106,18 @@ impl actix_web::ResponseError for Error {
                 ErrorMessageResponse::response_from(StatusCode::BAD_REQUEST, self)
             }
             Error::PoolError(_) => {
-                ErrorMessageResponse::response_from(StatusCode::BAD_REQUEST, self)
+                ErrorMessageResponse::response_from(StatusCode::INTERNAL_SERVER_ERROR, self)
             }
             Error::DatabaseError(_) => {
-                ErrorMessageResponse::response_from(StatusCode::BAD_REQUEST, self)
+                ErrorMessageResponse::response_from(StatusCode::INTERNAL_SERVER_ERROR, self)
             }
             Error::DieselError(_) => {
-                ErrorMessageResponse::response_from(StatusCode::BAD_REQUEST, self)
+                ErrorMessageResponse::response_from(StatusCode::INTERNAL_SERVER_ERROR, self)
             }
+            Error::SerdeJsonError(_) => ErrorMessageResponse::response_with_message(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Incorrect data, please check your request".to_string(),
+            ),
             _ => ErrorMessageResponse::response_from(StatusCode::INTERNAL_SERVER_ERROR, self),
         }
     }

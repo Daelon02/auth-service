@@ -1,62 +1,71 @@
-pub mod actors;
 pub mod consts;
-pub mod db;
 pub mod errors;
 pub mod middleware;
-pub mod models;
+pub mod opts;
 pub mod services;
-pub mod user_flow;
 pub mod utils;
 
-use crate::db::postgres_db::DbService;
 use crate::errors::Result;
-use crate::utils::{configure_data, configure_routes, init_logging};
+use crate::opts::app::AppState;
+use crate::opts::cmd_opts::Opts;
+use crate::services::auth0::auth0_service::Auth0Service;
+use crate::services::db::postgres_db::DbService;
+use crate::services::db::utils::create_connection_pool;
+use crate::utils::{configure_data, configure_routes, init_logging, load_configurations};
 use actix::Actor;
-
-use crate::services::auth0::Auth0Service;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        crate::user_flow::requests::login,
-        crate::user_flow::requests::register,
-        crate::user_flow::requests::change_password
+        crate::services::actix_requests::requests::login,
+        crate::services::actix_requests::requests::register,
+        crate::services::actix_requests::requests::change_password
     ),
     components(
-        schemas(crate::models::RegisteredUserData),
-        schemas(crate::models::UserData),
-        schemas(crate::models::UpdatePasswordData),
+        schemas(crate::services::actix_requests::models::RegisteredUserData),
+        schemas(crate::services::actix_requests::models::UserData),
+        schemas(crate::services::actix_requests::models::UpdatePasswordData),
     )
 )]
 struct ApiDoc;
 
 #[actix_web::main]
 async fn main() -> Result<()> {
+    dotenv::dotenv().ok();
     init_logging()?;
     log::info!("Starting auth service...");
 
-    let database_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let pool = db::utils::create_connection_pool(database_url).await?;
-    let db = DbService::new(pool);
-    let db = db.start();
+    let opts = load_configurations()?;
 
-    let client_id = dotenv::var("CLIENT_ID").unwrap_or_else(|_| "admin".to_string());
-    let client = dotenv::var("CLIENT").unwrap_or_else(|_| "localhost:8080".to_string());
-    let client_secret = dotenv::var("CLIENT_SECRET").unwrap_or_else(|_| "admin".to_string());
-    let connection = dotenv::var("CONNECTION")
-        .unwrap_or_else(|_| "Username-Password-Authentication".to_string());
-    let bind = dotenv::var("BIND").unwrap_or_else(|_| "localhost:8080".to_string());
+    let bind = opts.application.bind.clone();
 
-    let auth0_service = Auth0Service::new(client_id, client_secret, connection, client);
+    let state = init_state(opts).await?;
 
     let server = actix_web::HttpServer::new(move || {
+        let state = state.clone();
+
         actix_web::App::new()
             .configure(configure_routes)
-            .configure(configure_data(db.clone(), auth0_service.clone()))
+            .configure(configure_data(state))
     })
     .bind(bind)?;
 
     server.run().await?;
     Ok(())
+}
+
+async fn init_state(opts: Opts) -> Result<AppState> {
+    let pool = create_connection_pool(opts.database.database_url).await?;
+    let db = DbService::new(pool);
+    let db = db.start();
+
+    let auth0 = Auth0Service::new(
+        opts.auth0.client_id,
+        opts.auth0.client_secret,
+        opts.auth0.connection,
+        opts.auth0.client,
+    );
+
+    Ok(AppState::new(db, auth0))
 }

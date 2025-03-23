@@ -17,6 +17,9 @@ diesel = { version = "=2.1.4", features = [
     "chrono",
 ] }
 diesel-derive-enum = { version = "2.0.0-rc.0", features = ["postgres"] }
+clap = { version = "4.5.20", features = ["derive", "env"] }
+config = "=0.11.0"
+structopt = "0.3.26"
 diesel-async = { version = "0.4.1", features = ["postgres", "deadpool"] }
 tokio = "1.36.0"
 thiserror = "1.0.58"

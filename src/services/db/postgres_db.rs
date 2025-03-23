@@ -1,4 +1,4 @@
-use crate::db::utils::DatabasePool;
+use crate::services::db::utils::DatabasePool;
 use actix::Actor;
 
 #[derive(Clone)]

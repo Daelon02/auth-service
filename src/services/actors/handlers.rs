@@ -1,9 +1,9 @@
-use crate::actors::messages::{
+use crate::services::actors::messages::{
     CheckIfRegisteredUser, CheckUser, CreateUser, DeleteUser, UpdateActivateEmail, UpdateEmail,
     UpdateUsername,
 };
-use crate::db::postgres_db::DbService;
-use crate::db::tables::Users;
+use crate::services::db::postgres_db::DbService;
+use crate::services::db::tables::Users;
 use actix::{AtomicResponse, Handler, WrapFuture};
 use diesel::{ExpressionMethods, QueryDsl};
 use diesel_async::RunQueryDsl;
@@ -14,9 +14,10 @@ impl Handler<CreateUser> for DbService {
     fn handle(&mut self, msg: CreateUser, _: &mut Self::Context) -> Self::Result {
         let db = self.clone();
         let conn = async move { db.pool.get().await };
+        let user_id = msg.id.clone();
         let result = async move {
             let user = Users {
-                id: msg.id,
+                id: user_id,
                 username: msg.username,
                 email: msg.email,
                 is_email_activate: false,
@@ -24,7 +25,7 @@ impl Handler<CreateUser> for DbService {
                 updated_at: None,
             };
 
-            let _ = diesel::insert_into(crate::db::schema::users::table)
+            let _ = diesel::insert_into(crate::services::db::schema::users::table)
                 .values(user)
                 .execute(&mut conn.await?)
                 .await?;
@@ -45,10 +46,11 @@ impl Handler<UpdateActivateEmail> for DbService {
         let db = self.clone();
         let conn = async move { db.pool.get().await };
 
+        let user_id = msg.user_id.clone();
         let query = async move {
-            let _ = diesel::update(crate::db::schema::users::table)
-                .filter(crate::db::schema::users::id.eq(msg.user_id))
-                .set(crate::db::schema::users::is_email_activate.eq(true))
+            let _ = diesel::update(crate::services::db::schema::users::table)
+                .filter(crate::services::db::schema::users::id.eq(user_id))
+                .set(crate::services::db::schema::users::is_email_activate.eq(true))
                 .execute(&mut conn.await?)
                 .await?;
             Ok(())
@@ -66,10 +68,11 @@ impl Handler<DeleteUser> for DbService {
     fn handle(&mut self, msg: DeleteUser, _: &mut Self::Context) -> Self::Result {
         let db = self.clone();
         let conn = async move { db.pool.get().await };
+        let user_id = msg.user_id.clone();
         let query = async move {
             let _ = diesel::delete(
-                crate::db::schema::users::table
-                    .filter(crate::db::schema::users::id.eq(msg.user_id)),
+                crate::services::db::schema::users::table
+                    .filter(crate::services::db::schema::users::id.eq(user_id)),
             )
             .execute(&mut conn.await?)
             .await?;
@@ -88,10 +91,11 @@ impl Handler<UpdateEmail> for DbService {
     fn handle(&mut self, msg: UpdateEmail, _: &mut Self::Context) -> Self::Result {
         let db = self.clone();
         let conn = async move { db.pool.get().await };
+        let user_id = msg.user_id.clone();
         let query = async move {
-            let _ = diesel::update(crate::db::schema::users::table)
-                .filter(crate::db::schema::users::id.eq(msg.user_id))
-                .set(crate::db::schema::users::email.eq(msg.email))
+            let _ = diesel::update(crate::services::db::schema::users::table)
+                .filter(crate::services::db::schema::users::id.eq(user_id))
+                .set(crate::services::db::schema::users::email.eq(msg.email))
                 .execute(&mut conn.await?)
                 .await?;
             Ok(())
@@ -109,10 +113,11 @@ impl Handler<UpdateUsername> for DbService {
     fn handle(&mut self, msg: UpdateUsername, _: &mut Self::Context) -> Self::Result {
         let db = self.clone();
         let conn = async move { db.pool.get().await };
+        let user_id = msg.user_id.clone();
         let query = async move {
-            let _ = diesel::update(crate::db::schema::users::table)
-                .filter(crate::db::schema::users::id.eq(msg.user_id))
-                .set(crate::db::schema::users::username.eq(msg.username))
+            let _ = diesel::update(crate::services::db::schema::users::table)
+                .filter(crate::services::db::schema::users::id.eq(user_id))
+                .set(crate::services::db::schema::users::username.eq(msg.username))
                 .execute(&mut conn.await?)
                 .await?;
             Ok(())
@@ -130,12 +135,13 @@ impl Handler<CheckUser> for DbService {
     fn handle(&mut self, msg: CheckUser, _: &mut Self::Context) -> Self::Result {
         let db = self.clone();
         let conn = async move { db.pool.get().await };
+        let user_id = msg.id.clone();
         let query = async move {
-            let user = crate::db::schema::users::table
-                .filter(crate::db::schema::users::id.eq(msg.id))
+            let user = crate::services::db::schema::users::table
+                .filter(crate::services::db::schema::users::id.eq(user_id.clone()))
                 .first::<Users>(&mut conn.await?)
                 .await?;
-            Ok(user.id == msg.id)
+            Ok(user.id == user_id)
         };
         log::info!("Checking user {}", msg.id);
 
@@ -151,9 +157,9 @@ impl Handler<CheckIfRegisteredUser> for DbService {
         let db = self.clone();
         let conn = async move { db.pool.get().await };
         let query = async move {
-            let user = crate::db::schema::users::table
-                .filter(crate::db::schema::users::username.eq(msg.username))
-                .filter(crate::db::schema::users::email.eq(msg.email))
+            let user = crate::services::db::schema::users::table
+                .filter(crate::services::db::schema::users::username.eq(msg.username))
+                .filter(crate::services::db::schema::users::email.eq(msg.email))
                 .first::<Users>(&mut conn.await?)
                 .await;
 

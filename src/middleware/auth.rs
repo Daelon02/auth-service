@@ -1,9 +1,9 @@
+use crate::services::auth0::models::Claims;
 use actix_web::body::BoxBody;
 use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform};
 use actix_web::{Error, HttpResponse};
 use futures_util::future::{ok, LocalBoxFuture, Ready};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
-use serde::Deserialize;
 use std::fs::File;
 use std::io::Read;
 use std::rc::Rc;
@@ -12,17 +12,6 @@ use std::task::{Context, Poll};
 use tokio::sync::RwLock;
 
 pub const AUDIENCE: &str = "https://someexample.com";
-
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-struct Claims {
-    aud: String,
-    azp: String,
-    exp: i64,
-    iat: i64,
-    iss: String,
-    sub: String,
-}
 
 pub struct AuthMiddleware;
 

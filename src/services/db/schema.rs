@@ -1,5 +1,5 @@
 diesel::table!(users {
-    id -> Uuid,
+    id -> Varchar,
     username -> Varchar,
     email -> Varchar,
     is_email_activate -> Bool,
