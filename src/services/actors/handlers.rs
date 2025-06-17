@@ -17,7 +17,7 @@ impl Handler<CreateUser> for DbService {
         let user_id = msg.id.clone();
         let result = async move {
             let user = Users {
-                id: user_id,
+                auth_id: user_id,
                 username: msg.username,
                 email: msg.email,
                 is_email_activate: false,
@@ -49,7 +49,7 @@ impl Handler<UpdateActivateEmail> for DbService {
         let user_id = msg.user_id.clone();
         let query = async move {
             let _ = diesel::update(crate::services::db::schema::users::table)
-                .filter(crate::services::db::schema::users::id.eq(user_id))
+                .filter(crate::services::db::schema::users::auth_id.eq(user_id))
                 .set(crate::services::db::schema::users::is_email_activate.eq(true))
                 .execute(&mut conn.await?)
                 .await?;
@@ -72,7 +72,7 @@ impl Handler<DeleteUser> for DbService {
         let query = async move {
             let _ = diesel::delete(
                 crate::services::db::schema::users::table
-                    .filter(crate::services::db::schema::users::id.eq(user_id)),
+                    .filter(crate::services::db::schema::users::auth_id.eq(user_id)),
             )
             .execute(&mut conn.await?)
             .await?;
@@ -94,7 +94,7 @@ impl Handler<UpdateEmail> for DbService {
         let user_id = msg.user_id.clone();
         let query = async move {
             let _ = diesel::update(crate::services::db::schema::users::table)
-                .filter(crate::services::db::schema::users::id.eq(user_id))
+                .filter(crate::services::db::schema::users::auth_id.eq(user_id))
                 .set(crate::services::db::schema::users::email.eq(msg.email))
                 .execute(&mut conn.await?)
                 .await?;
@@ -116,7 +116,7 @@ impl Handler<UpdateUsername> for DbService {
         let user_id = msg.user_id.clone();
         let query = async move {
             let _ = diesel::update(crate::services::db::schema::users::table)
-                .filter(crate::services::db::schema::users::id.eq(user_id))
+                .filter(crate::services::db::schema::users::auth_id.eq(user_id))
                 .set(crate::services::db::schema::users::username.eq(msg.username))
                 .execute(&mut conn.await?)
                 .await?;
@@ -138,10 +138,11 @@ impl Handler<CheckUser> for DbService {
         let user_id = msg.id.clone();
         let query = async move {
             let user = crate::services::db::schema::users::table
-                .filter(crate::services::db::schema::users::id.eq(user_id.clone()))
-                .first::<Users>(&mut conn.await?)
+                .count()
+                .filter(crate::services::db::schema::users::auth_id.eq(user_id.clone()))
+                .first::<i64>(&mut conn.await?)
                 .await?;
-            Ok(user.id == user_id)
+            Ok(user == 1)
         };
         log::info!("Checking user {}", msg.id);
 
@@ -158,15 +159,13 @@ impl Handler<CheckIfRegisteredUser> for DbService {
         let conn = async move { db.pool.get().await };
         let query = async move {
             let user = crate::services::db::schema::users::table
+                .count()
                 .filter(crate::services::db::schema::users::username.eq(msg.username))
                 .filter(crate::services::db::schema::users::email.eq(msg.email))
-                .first::<Users>(&mut conn.await?)
-                .await;
+                .first::<i64>(&mut conn.await?)
+                .await?;
 
-            match user {
-                Ok(_) => Ok(true),
-                Err(_) => Ok(false),
-            }
+            Ok(user == 1)
         };
         log::info!("Checking if user is registered");
 

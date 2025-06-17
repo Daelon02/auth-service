@@ -2,12 +2,10 @@ use crate::errors::Result;
 use crate::services::actix_requests::models::{RegisteredUserData, UpdatePasswordData, UserData};
 use crate::services::actors::messages::{CheckUser, CreateUser};
 use crate::services::auth0::auth0_service::Auth0Service;
-use crate::services::auth0::models::Claims;
 use crate::services::db::postgres_db::DbService;
 use actix::Addr;
 use actix_web::web::{Data, Json};
 use actix_web::{HttpRequest, HttpResponse};
-use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 
 #[utoipa::path(
     post,
@@ -26,15 +24,15 @@ pub async fn register(
     let auth0_response = auth0_service.register_user(user.clone()).await?;
 
     let user = CreateUser {
-        id: auth0_response._id.clone(),
-        username: user.username.clone(),
-        password: user.password.clone(),
-        email: user.email.clone(),
+        id: auth0_response._id.to_string(),
+        username: user.username.to_string(),
+        password: user.password.to_string(),
+        email: user.email.to_string(),
     };
 
-    db.send(user.clone()).await??;
+    db.send(user).await??;
 
-    Ok(HttpResponse::Ok().body(serde_json::to_string(&auth0_response)?))
+    Ok(HttpResponse::Ok().json(&auth0_response))
 }
 
 #[utoipa::path(
@@ -57,7 +55,7 @@ pub async fn login(
     if db.send(if_user).await?? {
         log::info!("Getting request for login!");
         let result = auth0_service.send_request_to_login(user.0).await?;
-        Ok(HttpResponse::Ok().body(serde_json::to_string(&result)?))
+        Ok(HttpResponse::Ok().json(&result))
     } else {
         Ok(HttpResponse::BadRequest().finish())
     }
@@ -120,7 +118,7 @@ pub async fn profile(
             "Invalid token".to_string(),
         ))?;
 
-    let user_id = extract_user_id(access_token, get_secret())?;
+    let user_id = auth0_service.extract_user_id(access_token)?;
 
     let if_user = CheckUser { id: user_id };
 
@@ -131,26 +129,5 @@ pub async fn profile(
     let profile = auth0_service
         .send_request_to_get_profile(access_token)
         .await?;
-    Ok(HttpResponse::Ok().body(profile))
-}
-
-fn extract_user_id(token: &str, secret: DecodingKey) -> Result<String> {
-    let mut validation = Validation::new(Algorithm::RS256);
-
-    validation.set_audience(&["https://someexample.com"]);
-
-    log::info!("Starting to decode token");
-
-    let token_data = decode::<Claims>(token, &secret, &validation)?;
-
-    log::info!("Token: {:?}", token_data.claims);
-
-    let user_id = token_data.claims.sub.trim_start_matches("auth0|");
-
-    Ok(user_id.to_string())
-}
-
-fn get_secret() -> DecodingKey {
-    let pem_bytes = std::fs::read("dev-gf1e5jqvirizjwfz.pem").expect("Failed to read PEM file");
-    DecodingKey::from_rsa_pem(&pem_bytes).expect("Failed to load key")
+    Ok(HttpResponse::Ok().json(profile))
 }

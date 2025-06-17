@@ -1,42 +1,47 @@
-use crate::consts::{
-    ACCESS_TOKEN, APPLICATION_JSON, AUDIENCE, AUTHORIZATION, CONTENT_TYPE, GRANT_TYPE_PASS,
-};
+use crate::consts::{ACCESS_TOKEN, APPLICATION_JSON, AUTHORIZATION, CONTENT_TYPE, GRANT_TYPE_PASS};
 use crate::errors::{Error, Result};
 use crate::services::actix_requests::models::{LoginUserResponse, RegisteredUserData, UserData};
 use crate::services::auth0::consts::{
     CHANGE_PASSWORD_URL, GET_PROFILE_URL, LOGIN_URL, REGISTRATION_URL, SCOPE,
 };
 use crate::services::auth0::models::{
-    Auth0RegisterResponse, Auth0RequestBuilder, ChangePassFlow, ConnectToAuth0, LoginFlow,
-    SignupRequest, SignupRequestBuilder,
+    Auth0LoginResponse, Auth0RegisterResponse, Auth0RequestBuilder, ChangePassFlow, Claims,
+    ConnectToAuth0, LoginFlow, SignupRequest, SignupRequestBuilder,
 };
 use http::Method;
+use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use reqwest::Client;
 use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value;
 use std::fmt::Debug;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Clone)]
 pub struct Auth0Service {
-    client_id: String,
+    client_id: Box<str>,
     client_secret: String,
     connection: String,
     client_url: String,
+    audience: String,
+    decoding_key: DecodingKey,
 }
 
 impl Auth0Service {
     pub fn new(
-        client_id: String,
+        client_id: Box<str>,
         client_secret: String,
         connection: String,
         client_url: String,
+        audience: String,
+        decoding_key: DecodingKey,
     ) -> Self {
         Auth0Service {
             client_id,
             client_secret,
             connection,
             client_url,
+            audience,
+            decoding_key,
         }
     }
 
@@ -44,9 +49,9 @@ impl Auth0Service {
         &self,
         body: Auth0RequestBuilder<T>,
     ) -> Auth0RequestBuilder<T> {
-        body.client_id(self.client_id.clone())
+        body.client_id(self.client_id.to_string())
             .client_secret(self.client_secret.clone())
-            .audience(AUDIENCE.to_string())
+            .audience(self.audience.to_string())
             .connection(self.connection.clone())
     }
 
@@ -84,18 +89,18 @@ impl Auth0Service {
 
     fn build_body_for_register(
         &self,
-        password: String,
-        email: String,
-        username: String,
+        password: Box<str>,
+        email: Box<str>,
+        username: Box<str>,
     ) -> Result<SignupRequest> {
         let body = SignupRequestBuilder::new();
 
         let body = body
-            .client_id(self.client_id.clone())
-            .email(email)
-            .password(password)
+            .client_id(self.client_id.to_string())
+            .email(email.to_string())
+            .password(password.to_string())
             .connection(self.connection.clone())
-            .username(username);
+            .username(username.to_string());
 
         body.build()
     }
@@ -149,12 +154,9 @@ impl Auth0Service {
             .send()
             .await?;
 
-        let response: Result<Value> = response.json().await.map_err(Error::from);
+        let response: Result<Auth0LoginResponse> = response.json().await.map_err(Error::from);
         match response {
-            Ok(value) => {
-                let token = value[ACCESS_TOKEN].as_str().ok_or(Error::InvalidToken)?;
-                Ok(token.to_string())
-            }
+            Ok(value) => Ok(value.access_token),
             Err(e) => {
                 log::error!("Error: {}", e);
                 Err(Error::InvalidToken)
@@ -228,5 +230,29 @@ impl Auth0Service {
                 Err(Error::InvalidToken)
             }
         }
+    }
+
+    pub fn decoding_key(&self) -> &DecodingKey {
+        &self.decoding_key
+    }
+
+    pub fn audience(&self) -> &str {
+        &self.audience
+    }
+
+    pub fn extract_user_id(&self, token: &str) -> Result<String> {
+        let mut validation = Validation::new(Algorithm::RS256);
+
+        validation.set_audience(&[&self.audience]);
+
+        log::info!("Starting to decode token");
+
+        let token_data = decode::<Claims>(token, &self.decoding_key, &validation)?;
+
+        log::info!("Token: {:?}", token_data.claims);
+
+        let user_id = token_data.claims.sub.trim_start_matches("auth0|");
+
+        Ok(user_id.to_string())
     }
 }

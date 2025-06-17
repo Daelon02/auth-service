@@ -11,13 +11,12 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use tokio::sync::RwLock;
 
-pub const AUDIENCE: &str = "https://someexample.com";
-
 pub struct AuthMiddleware;
 
 pub struct CheckAuthMiddleware<S> {
     service: Rc<S>,
     decoding_key: Arc<RwLock<DecodingKey>>,
+    audience: String,
 }
 
 impl<S> Transform<S, ServiceRequest> for AuthMiddleware
@@ -32,11 +31,15 @@ where
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        let jwt_secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
+        let jwt_secret =
+            std::env::var("AUTH0_DEV_KEY_FILE").unwrap_or_else(|_| "secret".to_string());
+        let audience = std::env::var("AUTH0_AUDIENCE")
+            .unwrap_or_else(|_| "https://someexample.com".to_string());
         let decoding_key = AuthMiddleware::new_from_file(&jwt_secret).expect("Failed to load key");
         ok(CheckAuthMiddleware {
             service: Rc::new(service),
             decoding_key: Arc::new(RwLock::new(decoding_key)),
+            audience,
         })
     }
 }
@@ -58,6 +61,8 @@ where
         let service = Rc::clone(&self.service);
         let decoding_key = self.decoding_key.clone();
 
+        let audience = self.audience.clone();
+
         Box::pin(async move {
             let auth_header = req.headers().get("Authorization");
 
@@ -72,11 +77,9 @@ where
 
                         let decoding_key = decoding_key.read().await;
 
-                        let audience = [AUDIENCE];
-
                         let validation = &mut Validation::new(Algorithm::RS256);
 
-                        validation.set_audience(&audience);
+                        validation.set_audience(&[audience]);
 
                         return match decode::<Claims>(token, &decoding_key, validation) {
                             Ok(_) => service.call(req).await,

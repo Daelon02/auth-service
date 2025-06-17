@@ -1,5 +1,6 @@
 CREATE TABLE users (
-    id VARCHAR(24) PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
+    auth_id VARCHAR(24) NOT NULL,
     username VARCHAR(255),
     email VARCHAR(255) NOT NULL,
     is_email_activate BOOLEAN DEFAULT FALSE,

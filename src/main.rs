@@ -7,12 +7,14 @@ pub mod utils;
 
 use crate::errors::Result;
 use crate::opts::app::AppState;
-use crate::opts::cmd_opts::Opts;
+use crate::opts::cmd_opts::{load_configurations, Opts};
 use crate::services::auth0::auth0_service::Auth0Service;
 use crate::services::db::postgres_db::DbService;
 use crate::services::db::utils::create_connection_pool;
-use crate::utils::{configure_data, configure_routes, init_logging, load_configurations};
+use crate::services::routes::configure_routes;
+use crate::utils::{configure_data, init_logging};
 use actix::Actor;
+use jsonwebtoken::DecodingKey;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -60,12 +62,21 @@ async fn init_state(opts: Opts) -> Result<AppState> {
     let db = DbService::new(pool);
     let db = db.start();
 
+    let decoding_key = get_secret(&opts.auth0.dev_key_file);
+
     let auth0 = Auth0Service::new(
         opts.auth0.client_id,
         opts.auth0.client_secret,
         opts.auth0.connection,
         opts.auth0.client,
+        opts.auth0.audience,
+        decoding_key,
     );
 
     Ok(AppState::new(db, auth0))
+}
+
+fn get_secret(path: &str) -> DecodingKey {
+    let pem_bytes = std::fs::read(path).expect("Failed to read PEM file");
+    DecodingKey::from_rsa_pem(&pem_bytes).expect("Failed to load key")
 }

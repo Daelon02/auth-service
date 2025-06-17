@@ -1,5 +1,6 @@
 diesel::table!(users {
-    id -> Varchar,
+    id -> Serial,
+    auth_id -> Varchar,
     username -> Varchar,
     email -> Varchar,
     is_email_activate -> Bool,

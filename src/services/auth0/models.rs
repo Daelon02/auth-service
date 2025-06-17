@@ -225,11 +225,19 @@ pub struct Claims {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Auth0RegisterResponse {
-    pub _id: String,
+    pub _id: Box<str>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RegisteredUserResponse {
     pub id: String,
     pub token: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Auth0LoginResponse {
+    pub access_token: String,
+    pub id_token: String,
+    pub expires_in: u64,
+    pub token_type: String,
 }

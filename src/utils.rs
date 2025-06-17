@@ -1,21 +1,13 @@
 use crate::errors::Result;
-use crate::middleware::auth::AuthMiddleware;
 use crate::opts::app::AppState;
-use crate::opts::cmd_opts::Opts;
-use crate::services::actix_requests::requests::{change_password, login, profile, register};
-use crate::ApiDoc;
-use actix_web::web;
 use actix_web::web::{Data, ServiceConfig};
 use colored::Colorize;
-use config::{Config, File};
 use log::{Level, LevelFilter};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::thread::ThreadId;
 use structopt::StructOpt;
-use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
 
 pub fn init_logging() -> Result<()> {
     // Logging lib errors and all app logs
@@ -75,22 +67,6 @@ fn parse_thread_id(id: &ThreadId) -> String {
     parsed.unwrap_or(id_str)
 }
 
-pub fn configure_routes(cfg: &mut ServiceConfig) {
-    let openapi = ApiDoc::openapi();
-
-    cfg.service(
-        web::scope("/user")
-            .wrap(AuthMiddleware)
-            .service(web::resource("/change_password").route(web::post().to(change_password)))
-            .service(web::resource("/profile").route(web::get().to(profile))),
-    )
-    .service(
-        web::scope("")
-            .service(web::resource("/register").route(web::post().to(register)))
-            .service(web::resource("/login").route(web::post().to(login)))
-            .service(SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi)),
-    );
-}
 pub fn configure_data(app_state: AppState) -> Box<dyn FnOnce(&mut ServiceConfig)> {
     Box::new(move |cfg: &mut ServiceConfig| {
         cfg.app_data(Data::new(app_state.database))
@@ -101,17 +77,4 @@ pub fn configure_data(app_state: AppState) -> Box<dyn FnOnce(&mut ServiceConfig)
 #[derive(StructOpt, Debug)]
 pub struct ConfigPath {
     pub config: PathBuf,
-}
-
-pub fn load_configurations() -> Result<Opts> {
-    let config_file = ConfigPath::from_args_safe();
-    match config_file {
-        Ok(ConfigPath { config }) => {
-            let config_data = Config::new().with_merged(File::from(config))?;
-
-            let data: Opts = config_data.try_into()?;
-            Ok(data)
-        }
-        Err(_) => Ok(Opts::from_args()),
-    }
 }

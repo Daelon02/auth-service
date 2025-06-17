@@ -1,11 +1,11 @@
 use crate::services::db::schema::users;
 use chrono::{DateTime, Utc};
-use diesel::{Identifiable, Insertable, Queryable};
+use diesel::{Insertable, Queryable};
 
-#[derive(Debug, Clone, Queryable, Insertable, Identifiable)]
+#[derive(Debug, Clone, Queryable, Insertable)]
 #[diesel(table_name = users)]
 pub struct Users {
-    pub id: String,
+    pub auth_id: String,
     pub username: String,
     pub email: String,
     pub is_email_activate: bool,

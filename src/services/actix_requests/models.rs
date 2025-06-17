@@ -3,9 +3,9 @@ use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct UserData {
-    pub username: String,
-    pub password: String,
-    pub email: String,
+    pub username: Box<str>,
+    pub password: Box<str>,
+    pub email: Box<str>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
