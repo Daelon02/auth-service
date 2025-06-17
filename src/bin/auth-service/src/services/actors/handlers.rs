@@ -142,7 +142,7 @@ impl Handler<CheckUser> for DbService {
                 .filter(crate::services::db::schema::users::auth_id.eq(user_id.clone()))
                 .first::<i64>(&mut conn.await?)
                 .await?;
-            Ok(user == 1)
+            Ok(user > 0)
         };
         log::info!("Checking user {}", msg.id);
 
@@ -165,7 +165,7 @@ impl Handler<CheckIfRegisteredUser> for DbService {
                 .first::<i64>(&mut conn.await?)
                 .await?;
 
-            Ok(user == 1)
+            Ok(user > 0)
         };
         log::info!("Checking if user is registered");
 
