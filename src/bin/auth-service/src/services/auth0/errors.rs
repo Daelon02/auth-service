@@ -20,4 +20,6 @@ pub enum BuildError {
     MissingPassword,
     #[error("Missing username")]
     MissingUsername,
+    #[error("Missing scope")]
+    MissingScope,
 }

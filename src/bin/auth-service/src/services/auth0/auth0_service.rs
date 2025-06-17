@@ -5,8 +5,8 @@ use crate::services::auth0::consts::{
     CHANGE_PASSWORD_URL, GET_PROFILE_URL, LOGIN_URL, REGISTRATION_URL, SCOPE,
 };
 use crate::services::auth0::models::{
-    Auth0LoginResponse, Auth0RegisterResponse, Auth0RequestBuilder, ChangePassFlow, Claims,
-    ConnectToAuth0, LoginFlow, SignupRequest, SignupRequestBuilder,
+    Auth0LoginResponse, Auth0RegisterResponse, Auth0Request, Auth0RequestBuilder, ChangePassFlow,
+    Claims, LoginFlow, SignupRequest, SignupRequestBuilder,
 };
 use http::Method;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
@@ -59,7 +59,7 @@ impl Auth0Service {
         &self,
         user_id: String,
         email: String,
-    ) -> Result<ConnectToAuth0<ChangePassFlow>> {
+    ) -> Result<Auth0Request<ChangePassFlow>> {
         let body = Auth0RequestBuilder::new();
 
         let body = self
@@ -71,7 +71,7 @@ impl Auth0Service {
         body.build()
     }
 
-    fn build_body_for_login(&self, user: RegisteredUserData) -> Result<ConnectToAuth0<LoginFlow>> {
+    fn build_body_for_login(&self, user: RegisteredUserData) -> Result<Auth0Request<LoginFlow>> {
         let body = Auth0RequestBuilder::new();
 
         let body = self

@@ -7,10 +7,9 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::thread::ThreadId;
-use structopt::StructOpt;
 
 pub fn init_logging() -> Result<()> {
-    // Logging lib errors and all app logs
+    // Logging src errors and all app logs
     let log_level = LevelFilter::Debug;
 
     // This is the main logging dispatch
@@ -74,7 +73,7 @@ pub fn configure_data(app_state: AppState) -> Box<dyn FnOnce(&mut ServiceConfig)
     })
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Debug)]
 pub struct ConfigPath {
     pub config: PathBuf,
 }
