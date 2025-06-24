@@ -2,16 +2,17 @@ pub mod consts;
 pub mod errors;
 pub mod middleware;
 pub mod opts;
+pub mod routes;
 pub mod services;
 pub mod utils;
 
 use crate::errors::Result;
 use crate::opts::app::AppState;
 use crate::opts::cmd_opts::{load_configurations, Opts};
+use crate::routes::configure_routes;
 use crate::services::auth0::auth0_service::Auth0Service;
 use crate::services::db::postgres_db::DbService;
 use crate::services::db::utils::create_connection_pool;
-use crate::services::routes::configure_routes;
 use crate::utils::{configure_data, init_logging};
 use actix::Actor;
 use jsonwebtoken::DecodingKey;
