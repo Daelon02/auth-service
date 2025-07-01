@@ -15,6 +15,7 @@ Cargo.lock
 .idea
 .env
 *.pem
+config.yaml
 
 
 # Added by cargo
